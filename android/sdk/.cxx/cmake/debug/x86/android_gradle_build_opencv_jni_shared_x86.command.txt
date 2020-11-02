@@ -1,0 +1,8 @@
+Executable : C:\Users\yurne\AppData\Local\Android\Sdk\cmake\3.6.4111459\bin\cmake.exe
+arguments : 
+--build
+C:\Users\yurne\OneDrive\Documents\Git\Flutter\scanner\android\sdk\.cxx\cmake\debug\x86
+--target
+opencv_jni_shared
+jvmArgs : 
+
