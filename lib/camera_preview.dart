@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:scanner/image_cropper.dart';
 import 'package:scanner/rect_painter.dart';
 
 class Scanner extends StatefulWidget {
@@ -51,75 +52,52 @@ class _ScannerState extends State<Scanner> {
   Widget build(BuildContext context) {
     return isReady
         ? SafeArea(
-            child: GestureDetector(
-              onPanUpdate: (details) {
-                print(details.localPosition);
-              },
-              child: Stack(
-                children: [
-                  Container(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        AspectRatio(
-                          aspectRatio: _controller.value.aspectRatio,
-                          child: CameraPreview(_controller),
-                        ),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceAround,
-                          children: [
-                            CupertinoButton(
-                              child: Text("Close"),
-                              onPressed: () {
-                                Navigator.pop(context);
-                              },
+            child: Stack(
+              children: [
+                Container(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      AspectRatio(
+                        aspectRatio: _controller.value.aspectRatio,
+                        child: CameraPreview(_controller),
+                      ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        children: [
+                          CupertinoButton(
+                            child: Text("Huỷ"),
+                            onPressed: () {
+                              Navigator.pop(context);
+                            },
+                          ),
+                          CupertinoButton(
+                            child: Text("Chụp"),
+                            onPressed: () {
+                              takePicture();
+                            },
+                          ),
+                          CupertinoButton(
+                            child: Text(
+                              "Auto",
+                              style: TextStyle(
+                                color:
+                                    isAuto ? Colors.grey[800] : Colors.grey[50],
+                              ),
                             ),
-                            CupertinoButton(
-                              child: Text("Auto"),
-                              onPressed: () {
-                                autoDetect();
-                              },
-                            ),
-                            CupertinoButton(
-                              child: Text("Tap"),
-                              onPressed: () {
-                                takePicture();
-                              },
-                            ),
-                          ],
-                        ),
-                        imageBytes != null
-                            ? Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Container(
-                                    color: Colors.red,
-                                    height: 53,
-                                    width: 20,
-                                  ),
-                                  Container(
-                                    color: Colors.white,
-                                    child: RotatedBox(
-                                      quarterTurns: -135,
-                                      child: Image.memory(
-                                        imageBytes,
-                                        // height: 100,
-                                        // width: 100,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              )
-                            : Container(),
-                      ],
-                    ),
+                            onPressed: () {
+                              autoDetect();
+                            },
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                  isDetect
-                      ? CustomPaint(painter: RectPainter(tl, tr, bl, br))
-                      : Container(),
-                ],
-              ),
+                ),
+                isDetect
+                    ? CustomPaint(painter: RectPainter(tl, tr, bl, br))
+                    : Container(),
+              ],
             ),
           )
         : Container();
@@ -215,29 +193,22 @@ class _ScannerState extends State<Scanner> {
     final String filePath =
         '$dirPath/${DateTime.now().millisecondsSinceEpoch.toString()}.jpg';
     await _controller.takePicture(filePath);
-
     try {
       MethodChannel channel = MethodChannel("opencv");
       var image = File(filePath);
       var listPoint = await channel.invokeMethod(
           "pictureDetect", {'byteArray': image.readAsBytesSync()});
       print(listPoint);
-
-      var decodedImage = await decodeImageFromList(image.readAsBytesSync());
-      var dxRaito = decodedImage.width / width;
-      var dyRaito = decodedImage.height / height;
-      setState(() {
-        if (listPoint != null) {
-          tl = Offset(listPoint[0]["x"] / dxRaito, listPoint[0]["y"] / dyRaito);
-          tr = Offset(listPoint[1]["x"] / dxRaito, listPoint[1]["y"] / dyRaito);
-          br = Offset(listPoint[2]["x"] / dxRaito, listPoint[2]["y"] / dyRaito);
-          bl = Offset(listPoint[3]["x"] / dxRaito, listPoint[3]["y"] / dyRaito);
-          isDetect = true;
-        } else {
-          isDetect = false;
-        }
-      });
       print(DateTime.now().difference(startTime).inMilliseconds);
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ImageCropper(
+            fileUri: filePath,
+            listPoint: listPoint,
+          ),
+        ),
+      );
     } catch (e) {
       print(e);
     }

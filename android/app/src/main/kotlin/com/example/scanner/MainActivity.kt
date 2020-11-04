@@ -9,13 +9,9 @@ import io.flutter.plugin.common.MethodChannel
 import org.opencv.android.OpenCVLoader
 import org.opencv.android.Utils
 import org.opencv.core.*
-import org.opencv.core.CvType.CV_8UC1
-import org.opencv.core.CvType.CV_8UC3
 import org.opencv.core.Point
 import org.opencv.imgproc.Imgproc
-import org.opencv.imgproc.Imgproc.COLOR_YUV2RGB_NV21
 import java.io.ByteArrayOutputStream
-import java.nio.ByteBuffer
 
 class MainActivity : FlutterActivity() {
     private val CHANNEL = "opencv"
@@ -50,7 +46,7 @@ class MainActivity : FlutterActivity() {
                     out.close()
 
                     val conners = processPicture(bytes)
-                    val listPoint = conners?.corners?.let { toDartPoint(it) }
+                    val listPoint = conners?.corners?.let { pointToMap(it) }
                     result.success(listPoint)
                 }
 
@@ -59,7 +55,7 @@ class MainActivity : FlutterActivity() {
                     if (byteArray != null) {
                         val conners = processPicture(byteArray)
                         if (conners?.corners?.count() == 4) {
-                            val listPoint = toDartPoint(conners.corners)
+                            val listPoint = pointToMap(conners.corners)
                             result.success(listPoint)
                         } else {
                             result.success(null)
@@ -68,9 +64,34 @@ class MainActivity : FlutterActivity() {
                         result.success(null)
                     }
                 }
+
+                if (call.method == "cropImage") {
+
+                    val byteArray = call.argument<ByteArray>("byteArray")
+                    val listMap = call.argument<List<Map<String, Double>>>("listPoint")
+
+                    val bitmap = BitmapFactory.decodeByteArray(byteArray, 0, byteArray?.size!!)
+                    val pts = mapToPoint(listMap!!)
+
+                    val out = ByteArrayOutputStream()
+                    val mat = Mat()
+
+                    Utils.bitmapToMat(bitmap, mat)
+                    bitmap.recycle()
+
+                    val croppedBitmap = cropPicture(mat, pts)
+                    croppedBitmap.compress(Bitmap.CompressFormat.JPEG, 100, out)
+                    croppedBitmap.recycle()
+
+                    val bytes = out.toByteArray()
+                    out.close()
+
+                    result.success(bytes)
+                }
             }
         }
     }
+
 
     fun processPicture(byteArray: ByteArray): Corners? {
         val bitmap = BitmapFactory.decodeByteArray(byteArray, 0, byteArray.size)
@@ -165,15 +186,78 @@ class MainActivity : FlutterActivity() {
         return listOf(p0, p1, p2, p3)
     }
 
-    fun toDartPoint(conners: List<Point?>): List<Map<String, Double>> {
-        val listPoint = mutableListOf<Map<String, Double>>()
-        for (conner in conners) {
-            if (conner != null) {
-                listPoint.add(mapOf("x" to conner.x, "y" to conner.y))
+    fun pointToMap(listPoint: List<Point?>): List<Map<String, Double>> {
+        val listMap = mutableListOf<Map<String, Double>>()
+        for (point in listPoint) {
+            if (point != null) {
+                listMap.add(mapOf("x" to point.x, "y" to point.y))
             }
         }
+        return listMap
+    }
+
+    fun mapToPoint(listMap: List<Map<String, Double>>): List<Point> {
+        val listPoint = listMap.map { Point(it.get("x")!!, it.get("y")!!) }
+
         return listPoint
     }
+
+    fun cropPicture(picture: Mat, pts: List<Point>): Bitmap {
+
+        val tl = pts[0]
+        val tr = pts[1]
+        val br = pts[2]
+        val bl = pts[3]
+
+        val widthA = Math.sqrt(Math.pow(br.x - bl.x, 2.0) + Math.pow(br.y - bl.y, 2.0))
+        val widthB = Math.sqrt(Math.pow(tr.x - tl.x, 2.0) + Math.pow(tr.y - tl.y, 2.0))
+
+        val dw = Math.max(widthA, widthB)
+        val maxWidth = java.lang.Double.valueOf(dw).toInt()
+
+        val heightA = Math.sqrt(Math.pow(tr.x - br.x, 2.0) + Math.pow(tr.y - br.y, 2.0))
+        val heightB = Math.sqrt(Math.pow(tl.x - bl.x, 2.0) + Math.pow(tl.y - bl.y, 2.0))
+
+        val dh = Math.max(heightA, heightB)
+        val maxHeight = java.lang.Double.valueOf(dh).toInt()
+
+        val croppedPic = Mat(maxHeight, maxWidth, CvType.CV_8UC4)
+
+        val src_mat = Mat(4, 1, CvType.CV_32FC2)
+        val dst_mat = Mat(4, 1, CvType.CV_32FC2)
+
+        src_mat.put(0, 0, tl.x, tl.y, tr.x, tr.y, br.x, br.y, bl.x, bl.y)
+        dst_mat.put(0, 0, 0.0, 0.0, dw, 0.0, dw, dh, 0.0, dh)
+
+        val m = Imgproc.getPerspectiveTransform(src_mat, dst_mat)
+
+        Imgproc.warpPerspective(picture, croppedPic, m, croppedPic.size())
+        m.release()
+        src_mat.release()
+        dst_mat.release()
+
+        val bitmap = Bitmap.createBitmap(maxWidth, maxHeight, Bitmap.Config.ARGB_8888)
+//        Core.rotate(croppedPic, croppedPic, Core.ROTATE_90_CLOCKWISE)
+        Utils.matToBitmap(croppedPic, bitmap)
+        return bitmap
+    }
+
+//    println("original started")
+//    OpenCVLoader.initDebug()
+//    val mat = Mat()
+//    Utils.bitmapToMat(bitmap, mat)
+//    val src_mat = Mat(4, 1, CvType.CV_32FC2)
+//    val dst_mat = Mat(4, 1, CvType.CV_32FC2)
+//    src_mat.put(0, 0, tl_x, tl_y, tr_x, tr_y, bl_x, bl_y, br_x, br_y)
+//    dst_mat.put(0, 0, 0.0, 0.0, width.toDouble(), 0.0, 0.0, height.toDouble(), width.toDouble(), height.toDouble())
+//    val perspectiveTransform = Imgproc.getPerspectiveTransform(src_mat, dst_mat)
+//    Imgproc.warpPerspective(mat, mat, perspectiveTransform, Size(width.toDouble(), height.toDouble()))
+//    Utils.matToBitmap(mat, bitmap)
+//    bitmap = Bitmap.createScaledBitmap(bitmap, 2480, 3508, true)
+//    val stream = ByteArrayOutputStream()
+//    bitmap.compress(Bitmap.CompressFormat.JPEG, 100, stream)
+//    val byteArray = stream.toByteArray()
+//    originalArray = byteArray
 }
 
 data class Corners(val corners: List<Point?>, val size: Size)

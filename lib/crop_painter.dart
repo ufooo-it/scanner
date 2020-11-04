@@ -31,10 +31,10 @@ class CropPainter extends CustomPainter {
     //     RRect.fromLTRBR(180, 790, 220, 810, Radius.circular(10)), painter);
     // canvas.drawRRect(
     //     RRect.fromLTRBR(10, 420, 30, 380, Radius.circular(10)), painter);
-    canvas.drawLine(tl, tr, painter1);
-    canvas.drawLine(tr, br, painter1);
-    canvas.drawLine(br, bl, painter1);
-    canvas.drawLine(bl, tl, painter1);
+    canvas.drawLine(tl.translate(11, 0), tr.translate(-11, 0), painter1);
+    canvas.drawLine(tr.translate(0, 11), br.translate(0, -11), painter1);
+    canvas.drawLine(br.translate(-11, 0), bl.translate(11, 0), painter1);
+    canvas.drawLine(bl.translate(0, -11), tl.translate(0, 11), painter1);
   }
 
   @override

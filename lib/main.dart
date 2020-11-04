@@ -1,4 +1,3 @@
-import 'package:edge_detection/edge_detection.dart';
 import 'package:flutter/material.dart';
 import 'package:scanner/camera_preview.dart';
 
@@ -11,7 +10,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      home: MyHomePage(title: 'Flutter Demo Home Page'),
+      home: MyHomePage(title: 'Flutter Scanner'),
     );
   }
 }
@@ -52,12 +51,6 @@ class _MyHomePageState extends State<MyHomePage> {
               '$_counter',
               style: Theme.of(context).textTheme.headline4,
             ),
-            FlatButton(
-                onPressed: () async {
-                  var x = await EdgeDetection.detectEdge;
-                  print(x);
-                },
-                child: Text("Edge Detection"))
           ],
         ),
       ),

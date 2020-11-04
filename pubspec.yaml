@@ -31,7 +31,6 @@ dependencies:
   camera: ^0.5.8+11
   path_provider: ^1.6.22
   image: ^2.1.18
-  edge_detection: ^1.0.5
 
 dev_dependencies:
   flutter_test:
